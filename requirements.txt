@@ -1,6 +1,6 @@
 cycler==0.10.0
 numpy==1.18.1
-deepspeech==0.8.2
+deepspeech==0.6.1
 joblib==0.16.0
 kiwisolver==1.2.0
 pydub==0.23.1
