@@ -13,9 +13,24 @@ from deepspeech import Model, version
 from segmentAudio import silenceRemoval
 from audioProcessing import extract_audio, convert_samplerate
 from writeToFile import write_to_file
+from timeit import default_timer as timer
+
 
 # Line count for SRT file
 line_count = 0
+
+
+# The alpha hyperparameter of the CTC decoder. Language Model weight
+LM_ALPHA = 0.75
+
+# The beta hyperparameter of the CTC decoder. Word insertion bonus.
+LM_BETA = 1.85
+
+# Number of MFCC features to use
+N_FEATURES = 26
+
+# Size of the context window used for producing timesteps in the input vector
+N_CONTEXT = 9
 
 def sort_alphanumeric(data):
     """Sort function to sort os.listdir() alphanumerically
@@ -77,6 +92,12 @@ def main():
                         help='DeepSpeech scorer file')
     parser.add_argument('--file', required=True,
                         help='Input video file')
+    parser.add_argument('--alphabet', required=False,
+                        help='Path to the configuration file specifying the alphabet used by the network')
+    parser.add_argument('--lm', nargs='?',
+                        help='Path to the language model binary file')
+    parser.add_argument('--trie', nargs='?',
+                        help='Path to the language model trie file created with native_client/generate_trie')
     args = parser.parse_args()
     
     ds_model = args.model
@@ -85,15 +106,26 @@ def main():
         exit(1)
     
     # Load DeepSpeech model 
-    ds = Model(ds_model)
-            
+    # ds = Model(ds_model)
+    print('Loading model from file {}'.format(args.model), file=sys.stderr)
+    model_load_start = timer()
+    # ds = Model(args.model, N_FEATURES, N_CONTEXT, args.alphabet, BEAM_WIDTH)
+    ds = Model(args.model, N_FEATURES, N_CONTEXT, args.alphabet)
+           
     if args.scorer:
         ds_scorer = args.scorer
         if not ds_scorer.endswith(".scorer"):
             print("Invalid scorer file. Running inference using only model file\n")
         else:
             ds.enableExternalScorer(ds_scorer)
-    
+    if args.lm and args.trie:
+        print('Loading language model from files {} {}'.format(args.lm, args.trie), file=sys.stderr)
+        lm_load_start = timer()
+        ds.enableDecoderWithLM(args.alphabet, args.lm, args.trie, LM_ALPHA, LM_BETA)
+        lm_load_end = timer() - lm_load_start
+        print('Loaded language model in {:.3}s.'.format(lm_load_end), file=sys.stderr)
+
+
     input_file = args.file
     print("\nInput file:", input_file)
     
